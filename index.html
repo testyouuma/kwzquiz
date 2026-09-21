@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>棒バトフレームクイズ</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#191c22; --panel2:#22262e; --line:#2e333d;
+    --text:#e8eaed; --muted:#9aa0aa; --accent:#4aa3ff;
+    --ok:#2ecc71; --ng:#e74c3c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:16px;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
+  h1{font-size:1.2rem; margin:0;}
+  .score{font-size:.85rem; color:var(--muted); text-align:right; white-space:nowrap;}
+  .score b{color:var(--text);}
+
+  .frame-box{
+    position:relative; background:#000; border:1px solid var(--line);
+    border-radius:10px; overflow:hidden; aspect-ratio:4/3;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .frame-box img{width:100%; height:100%; object-fit:contain; display:block;}
+  .frame-tag{
+    position:absolute; left:8px; top:8px; background:rgba(0,0,0,.6);
+    padding:2px 8px; border-radius:6px; font-size:.75rem; color:var(--muted);
+  }
+
+  .controls{display:flex; gap:8px; margin:10px 0 4px;}
+  button{
+    font:inherit; color:var(--text); background:var(--panel2);
+    border:1px solid var(--line); border-radius:8px; padding:10px 14px;
+    cursor:pointer; transition:.12s;
+  }
+  button:hover{border-color:var(--accent);}
+  button:disabled{opacity:.4; cursor:default;}
+  .btn-alt{flex:1;}
+  .hint{font-size:.8rem; color:var(--muted); margin:2px 0 12px;}
+
+  .q{font-size:.95rem; color:var(--muted); margin:6px 0;}
+  .choices{display:grid; gap:10px;}
+  .choice{
+    text-align:left; padding:12px 14px; border-radius:10px;
+    background:var(--panel); border:1px solid var(--line); width:100%;
+  }
+  .choice:hover:not(:disabled){border-color:var(--accent);}
+  .choice .title{font-weight:600; font-size:1rem;}
+  .choice .meta{font-size:.82rem; color:var(--muted); margin-top:2px;}
+  .choice.correct{border-color:var(--ok); background:rgba(46,204,113,.12);}
+  .choice.wrong{border-color:var(--ng); background:rgba(231,76,60,.12);}
+
+  .result{margin-top:14px; padding:12px 14px; border-radius:10px;
+    background:var(--panel); border:1px solid var(--line); display:none;}
+  .result.show{display:block;}
+  .result a{color:var(--accent);}
+  .next{margin-top:12px; width:100%; background:var(--accent); border-color:var(--accent); color:#04121f; font-weight:700;}
+  .loading{color:var(--muted); text-align:center; padding:40px 0;}
+  footer{margin-top:20px; font-size:.75rem; color:var(--muted); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🥢 棒バトフレームクイズ</h1>
+    <div class="score">
+      連続 <b id="streak">0</b> ／ 正解 <b id="correct">0</b>/<b id="total">0</b>
+    </div>
+  </header>
+
+  <div id="app"><div class="loading">読み込み中…</div></div>
+
+  <footer>
+    データ元: <a href="https://aiueo9999.pythonanywhere.com/" target="_blank" rel="noopener" style="color:var(--muted)">棒バトLOD</a>
+  </footer>
+</div>
+
+<script>
+const state = { works: [], byId: {}, cur: null, frameIdx: 0, answered: false,
+                streak: 0, correct: 0, total: 0 };
+
+function pick(arr, n){ // n個ランダム抽出（重複なし）
+  const a = arr.slice(); const out = [];
+  while(out.length < n && a.length){ out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]); }
+  return out;
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function load(){
+  try{
+    const res = await fetch('quiz_data.json', {cache:'no-store'});
+    const all = await res.json();
+    state.works = all.filter(w => w.frames && w.frames.length);
+    state.byId = Object.fromEntries(state.works.map(w=>[w.id,w]));
+    if(state.works.length < 4){ document.getElementById('app').innerHTML='<div class="loading">データが足りません（フレーム抽出を実行してください）</div>'; return; }
+    next();
+  }catch(e){
+    document.getElementById('app').innerHTML='<div class="loading">quiz_data.json を読み込めませんでした</div>';
+  }
+}
+
+function next(){
+  state.answered = false;
+  const target = pick(state.works, 1)[0];
+  state.cur = target;
+  state.frameIdx = Math.floor(Math.random()*target.frames.length);
+  // 選択肢: 正解 + ダミー3（他作品）
+  const distract = pick(state.works.filter(w=>w.id!==target.id), 3);
+  state.options = pick([target, ...distract], 4); // シャッフル
+  render();
+}
+
+function render(){
+  const w = state.cur;
+  const frame = w.frames[state.frameIdx];
+  const opts = state.options.map((o,i)=>`
+    <button class="choice" data-id="${o.id}" onclick="answer('${o.id}')">
+      <div class="title">${esc(o.title)}</div>
+      <div class="meta">${esc(o.author)}${o.date? ' ・ '+esc(o.date):''}</div>
+    </button>`).join('');
+
+  document.getElementById('app').innerHTML = `
+    <div class="frame-box">
+      <img src="frames/${frame}" alt="frame" onerror="this.style.opacity=.3">
+      <div class="frame-tag">コマ ${state.frameIdx+1}/${w.frames.length}</div>
+    </div>
+    <div class="controls">
+      <button class="btn-alt" onclick="otherFrame()">🔀 別のコマ！</button>
+    </div>
+    <div class="hint">真っ黒/真っ白っぽいコマが出たら「別のコマ！」で変えられるよ</div>
+    <div class="q">この1コマはどの作品？</div>
+    <div class="choices">${opts}</div>
+    <div class="result" id="result"></div>
+  `;
+  document.getElementById('streak').textContent = state.streak;
+  document.getElementById('correct').textContent = state.correct;
+  document.getElementById('total').textContent = state.total;
+}
+
+function otherFrame(){
+  const w = state.cur;
+  if(w.frames.length < 2) return;
+  let i = state.frameIdx;
+  while(i === state.frameIdx){ i = Math.floor(Math.random()*w.frames.length); }
+  state.frameIdx = i;
+  const img = document.querySelector('.frame-box img');
+  const tag = document.querySelector('.frame-tag');
+  img.src = 'frames/'+w.frames[i]; img.style.opacity=1;
+  tag.textContent = `コマ ${i+1}/${w.frames.length}`;
+}
+
+function answer(id){
+  if(state.answered) return;
+  state.answered = true;
+  const w = state.cur;
+  const isCorrect = id === w.id;
+  state.total++;
+  if(isCorrect){ state.correct++; state.streak++; } else { state.streak = 0; }
+
+  document.querySelectorAll('.choice').forEach(btn=>{
+    btn.disabled = true;
+    if(btn.dataset.id === w.id) btn.classList.add('correct');
+    else if(btn.dataset.id === id) btn.classList.add('wrong');
+  });
+
+  const r = document.getElementById('result');
+  r.className = 'result show';
+  r.innerHTML = `
+    <div>${isCorrect?'✅ 正解！':'❌ 不正解…'} 答えは <b>${esc(w.title)}</b></div>
+    <div class="meta" style="color:var(--muted);font-size:.85rem;margin-top:4px">
+      ${esc(w.author)}${w.date? ' ・ '+esc(w.date):''} ・ ${esc(w.duration||'')}
+    </div>
+    <div style="margin-top:6px"><a href="${esc(w.url)}" target="_blank" rel="noopener">▶ 動画を見る</a>
+      ・ <a href="https://aiueo9999.pythonanywhere.com/detail/${w.id}" target="_blank" rel="noopener">作品ページ</a></div>
+    <button class="next" onclick="next()">次の問題 →</button>
+  `;
+  document.getElementById('streak').textContent = state.streak;
+  document.getElementById('correct').textContent = state.correct;
+  document.getElementById('total').textContent = state.total;
+}
+
+window.answer = answer; window.otherFrame = otherFrame; window.next = next;
+load();
+</script>
+</body>
+</html>
