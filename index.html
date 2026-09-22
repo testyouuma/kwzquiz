@@ -46,7 +46,20 @@
   .choice{text-align:left; padding:12px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line); width:100%;}
   .choice:hover:not(:disabled){border-color:var(--accent);}
   .choice .title{font-weight:600; font-size:1rem;}
+  .choice .author{font-size:1.05rem; font-weight:700; color:var(--accent); margin-top:3px;}
+  .choice .date{font-size:.8rem; color:var(--muted); margin-top:1px;}
   .choice .meta{font-size:.82rem; color:var(--muted); margin-top:2px;}
+
+  /* 作者選択 */
+  .search{width:100%; font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); margin:8px 0;}
+  .author-list{display:grid; gap:8px; max-height:56vh; overflow:auto; padding-right:4px;}
+  .author-item{display:flex; justify-content:space-between; align-items:center; text-align:left;
+    padding:12px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line);}
+  .author-item:hover{border-color:var(--accent);}
+  .author-item .n{color:var(--muted); font-size:.85rem; white-space:nowrap;}
+  .back{background:transparent; border:none; color:var(--muted); padding:6px 0; cursor:pointer;}
+  .back:hover{color:var(--accent);}
   .choice.correct{border-color:var(--ok); background:rgba(46,204,113,.12);}
   .choice.wrong{border-color:var(--ng); background:rgba(231,76,60,.12);}
 
@@ -129,6 +142,10 @@ function home(){
         <div class="t"><span class="emoji">🎯</span>正答率モード（${ACC_TOTAL}問）</div>
         <div class="d">${ACC_TOTAL}問の正解数と早さを競う。ランキングあり🏆</div>
       </button>
+      <button class="mode-card" onclick="authorSelect()">
+        <div class="t"><span class="emoji">👤</span>作者モード</div>
+        <div class="d">1人の作者にしぼって出題。全作品モード＆タイムアタック。</div>
+      </button>
     </div>
     <div style="margin-top:20px">
       <div class="tabs">
@@ -143,21 +160,30 @@ function home(){
 // ===== 出題共通 =====
 function nextQuestion(){
   S.answered=false;
-  const target=pick(S.works,1)[0];
+  const pool = S.pool && S.pool.length ? S.pool : S.works;
+  // 全作品モードは各作品を1回ずつ（順番はシャッフル済みの queue から取る）
+  let target;
+  if(S.queue && S.queue.length){ target = S.queue.shift(); }
+  else { target = pick(pool,1)[0]; }
   S.cur=target;
   S.frameIdx=Math.floor(Math.random()*target.frames.length);
-  const distract=pick(S.works.filter(w=>w.id!==target.id),3);
+  const distract=pick(pool.filter(w=>w.id!==target.id),3);
   S.options=pick([target,...distract],4);
   renderQuestion();
 }
 
 function renderQuestion(){
   const w=S.cur, frame=w.frames[S.frameIdx];
-  const opts=S.options.map(o=>`
-    <button class="choice" data-id="${o.id}" onclick="answer('${o.id}')">
-      <div class="title">${esc(o.title)}</div>
-      <div class="meta">${esc(o.author)}${o.date?' ・ '+esc(o.date):''}</div>
-    </button>`).join('');
+  const authorMode = S.mode && S.mode.startsWith('author');
+  const opts=S.options.map(o=>{
+    // 作者モードは全員同じ作者なので、作品名＋投稿日で見分ける
+    const info = authorMode
+      ? `<div class="date">${o.date?esc(o.date):''}${o.duration?' ・ '+esc(o.duration):''}</div>`
+      : `<div class="author">${esc(o.author)}</div>${o.date?'<div class="date">'+esc(o.date)+'</div>':''}`;
+    return `<button class="choice" data-id="${o.id}" onclick="answer('${o.id}')">
+      <div class="title">${esc(o.title)}</div>${info}
+    </button>`;
+  }).join('');
   app().innerHTML=`
     <div class="frame-box">
       <img src="frames/${frame}" alt="frame" onerror="this.style.opacity=.3">
@@ -190,17 +216,21 @@ function answer(id){
 }
 
 function updateHud(){
+  const timed = S.mode==='timeattack' || S.mode==='author_ta';
   if(S.mode==='normal'){
     hud().innerHTML=`連続 <b>${S.streak}</b> ／ 正解 <b>${S.correct}</b>/<b>${S.total}</b>`;
-  }else if(S.mode==='timeattack'){
+  }else if(timed){
     hud().innerHTML=`残り <span class="time">${S.timeLeft}</span>秒 ／ 正解 <b>${S.correct}</b>`;
-  }else if(S.mode==='accuracy'){
-    hud().innerHTML=`<b>${S.total+1>ACC_TOTAL?ACC_TOTAL:S.total+1}</b>/${ACC_TOTAL}問 ／ 正解 <b>${S.correct}</b>`;
+  }else if(S.mode==='accuracy' || S.mode==='author_all'){
+    const n=Math.min(S.total+1,S.limit);
+    hud().innerHTML=`<b>${n}</b>/${S.limit}問 ／ 正解 <b>${S.correct}</b>`;
   }
 }
 
+function resetPool(){ S.pool=S.works; S.queue=null; S.author=null; }
+
 // ===== ふつうモード =====
-function startNormal(){S.mode='normal';S.streak=0;S.correct=0;S.total=0;nextQuestion();}
+function startNormal(){resetPool();S.mode='normal';S.streak=0;S.correct=0;S.total=0;nextQuestion();}
 function afterNormal(ok,w){
   S.total++; if(ok){S.correct++;S.streak++;}else S.streak=0;
   const r=document.getElementById('result'); r.className='result show';
@@ -213,13 +243,15 @@ function afterNormal(ok,w){
 }
 
 // ===== タイムアタック / 正答率（回答したら即次へ） =====
+function startTimer(){ S.timer=setInterval(()=>{S.timeLeft--;updateHud();if(S.timeLeft<=0)finishTimed();},1000); }
 function startTA(){
+  resetPool();
   S.mode='timeattack';S.correct=0;S.total=0;S.timeLeft=TA_SECONDS;
-  S.timer=setInterval(()=>{S.timeLeft--;updateHud();if(S.timeLeft<=0)finishTimed();},1000);
-  nextQuestion();
+  startTimer(); nextQuestion();
 }
 function startACC(){
-  S.mode='accuracy';S.correct=0;S.total=0;S.startTime=Date.now();
+  resetPool();
+  S.mode='accuracy';S.correct=0;S.total=0;S.limit=ACC_TOTAL;S.startTime=Date.now();
   nextQuestion();
 }
 function afterTimed(ok,w){
@@ -229,22 +261,35 @@ function afterTimed(ok,w){
   const r=document.getElementById('result'); r.className='result show';
   r.innerHTML=`<div>${ok?'✅ 正解！':'❌ 不正解… 答えは <b>'+esc(w.title)+'</b>'}</div>`;
   const delay = ok?450:900;
-  if(S.mode==='accuracy' && S.total>=ACC_TOTAL){ setTimeout(finishTimed,delay); return; }
+  const fixed = (S.mode==='accuracy' || S.mode==='author_all');
+  if(fixed && S.total>=S.limit){ setTimeout(finishTimed,delay); return; }
   setTimeout(()=>{ if(S.mode)nextQuestion(); }, delay);
 }
 
 function finishTimed(){
   if(S.timer){clearInterval(S.timer);S.timer=null;}
-  const mode=S.mode;
-  let score, detail, label;
-  if(mode==='timeattack'){ score=S.correct; detail=S.total; label=`${TA_SECONDS}秒で <b>${score}</b> 問正解`; }
-  else { const sec=Math.round((Date.now()-S.startTime)/1000); score=S.correct; detail=sec;
-         label=`${ACC_TOTAL}問中 <b>${score}</b> 問正解（${sec}秒）`; }
+  const mode=S.mode, author=S.author;
+  let score, detail, label, big;
+  if(mode==='timeattack'){ score=S.correct; detail=S.total; big=score; label=`${TA_SECONDS}秒で <b>${score}</b> 問正解`; }
+  else if(mode==='accuracy'){ const sec=Math.round((Date.now()-S.startTime)/1000); score=S.correct; detail=sec; big=`${score}/${ACC_TOTAL}`; label=`${ACC_TOTAL}問中 <b>${score}</b> 問正解（${sec}秒）`; }
+  else if(mode==='author_ta'){ score=S.correct; detail=S.total; big=score; label=`${esc(author)} で ${TA_SECONDS}秒 <b>${score}</b> 問正解`; }
+  else { const sec=Math.round((Date.now()-S.startTime)/1000); score=S.correct; detail=sec; big=`${score}/${S.limit}`; label=`${esc(author)} 全${S.limit}問中 <b>${score}</b> 問正解（${sec}秒）`; }
   S.mode=null; hud().textContent='';
+
+  // 作者モードはローカル結果のみ（共有ランキングなし）
+  if(mode==='author_all' || mode==='author_ta'){
+    S.selAuthor=author;
+    app().innerHTML=`
+      <div class="final"><div class="big">${big}</div><div class="sub">${label}</div></div>
+      <button class="next" onclick="authorMenu()">同じ作者でもう一度</button>
+      <button class="mode-card" style="margin-top:10px" onclick="home()">ホームへ戻る</button>`;
+    return;
+  }
+
   const lastName = localStorage.getItem('kwzq_name')||'';
   app().innerHTML=`
     <div class="final">
-      <div class="big">${score}${mode==='accuracy'?'/'+ACC_TOTAL:''}</div>
+      <div class="big">${big}</div>
       <div class="sub">${label}</div>
     </div>
     <div class="name-row">
@@ -255,6 +300,72 @@ function finishTimed(){
     <button class="next" onclick="home()">ホームへ戻る</button>
     <div style="margin-top:18px"><div class="q">🏆 ランキング</div><div id="board"></div></div>`;
   renderBoard(mode, app().querySelector('#board'));
+}
+
+// ===== 作者モード =====
+function authorList(){
+  const from={};
+  S.works.forEach(w=>{(from[w.author]=from[w.author]||[]).push(w);});
+  return Object.entries(from).filter(([a,ws])=>ws.length>=4)
+    .map(([a,ws])=>({author:a,count:ws.length}))
+    .sort((x,y)=>y.count-x.count);
+}
+function authorSelect(){
+  S.mode=null; hud().textContent='';
+  const list=authorList();
+  app().innerHTML=`
+    <button class="back" onclick="home()">← ホーム</button>
+    <div class="q">作者を選ぶ（4作品以上・${list.length}人）</div>
+    <input class="search" id="asearch" placeholder="作者名で検索…" oninput="filterAuthors()">
+    <div class="author-list" id="alist"></div>`;
+  S._authors=list; renderAuthors(list);
+  document.getElementById('asearch').focus();
+}
+function renderAuthors(list){
+  const el=document.getElementById('alist');
+  if(!list.length){el.innerHTML='<div class="loading">見つかりません</div>';return;}
+  el.innerHTML=list.map((a,i)=>`
+    <button class="author-item" onclick="authorMenuIdx(${i})">
+      <span>${esc(a.author)}</span><span class="n">${a.count}作品</span>
+    </button>`).join('');
+  S._shown=list;
+}
+function filterAuthors(){
+  const q=document.getElementById('asearch').value.trim().toLowerCase();
+  renderAuthors(S._authors.filter(a=>a.author.toLowerCase().includes(q)));
+}
+function authorMenuIdx(i){ authorMenu(S._shown[i].author); }
+function authorMenu(author){
+  if(author) S.selAuthor=author; else author=S.selAuthor;
+  S.mode=null; hud().textContent='';
+  const pool=S.works.filter(w=>w.author===author);
+  app().innerHTML=`
+    <button class="back" onclick="authorSelect()">← 作者選択</button>
+    <div class="final" style="padding:10px 0"><div style="font-size:1.4rem;font-weight:800">👤 ${esc(author)}</div><div class="sub">${pool.length}作品</div></div>
+    <div class="modes">
+      <button class="mode-card" onclick="startAuthorAll()">
+        <div class="t"><span class="emoji">📚</span>全作品モード（${pool.length}問）</div>
+        <div class="d">この作者の全${pool.length}作品を1問ずつ出題。</div>
+      </button>
+      <button class="mode-card" onclick="startAuthorTA()">
+        <div class="t"><span class="emoji">⏱️</span>タイムアタック（${TA_SECONDS}秒）</div>
+        <div class="d">この作者の作品から、制限時間内に何問正解できるか。</div>
+      </button>
+    </div>`;
+}
+function startAuthorAll(){
+  const author=S.selAuthor;
+  S.pool=S.works.filter(w=>w.author===author);
+  S.queue=pick(S.pool, S.pool.length); // シャッフルして1回ずつ
+  S.mode='author_all';S.author=author;S.correct=0;S.total=0;S.limit=S.pool.length;S.startTime=Date.now();
+  nextQuestion();
+}
+function startAuthorTA(){
+  const author=S.selAuthor;
+  S.pool=S.works.filter(w=>w.author===author);
+  S.queue=null;
+  S.mode='author_ta';S.author=author;S.correct=0;S.total=0;S.timeLeft=TA_SECONDS;
+  startTimer(); nextQuestion();
 }
 
 async function submitScore(mode,score,detail){
@@ -303,7 +414,8 @@ async function renderBoard(mode, el){
 }
 
 // グローバル公開
-Object.assign(window,{home,startNormal,startTA,startACC,answer,otherFrame,nextQuestion,submitScore,showBoard});
+Object.assign(window,{home,startNormal,startTA,startACC,answer,otherFrame,nextQuestion,submitScore,showBoard,
+  authorSelect,filterAuthors,authorMenu,authorMenuIdx,startAuthorAll,startAuthorTA});
 load();
 </script>
 </body>
