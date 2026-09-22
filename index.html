@@ -204,7 +204,30 @@ function nextQuestion(){
   else { target=pick(pool,1)[0]; }
   S.cur=target;
   S.frameIdx=Math.floor(Math.random()*target.frames.length);
-  const distract=pick(pool.filter(w=>w.id!==target.id),3);
+
+  const authorMode=S.mode&&S.mode.startsWith('author');
+  let distract;
+  if(authorMode){
+    // 作者モードは全員同じ作者なのでそのまま
+    distract=pick(pool.filter(w=>w.id!==target.id),3);
+  }else{
+    // ダミーは作者が全員バラバラ（正解の作者とも重複しない）
+    const usedAuthors=new Set([target.author]);
+    distract=[];
+    const cands=pick(pool.filter(w=>w.id!==target.id), pool.length); // シャッフル全件
+    for(const w of cands){
+      if(usedAuthors.has(w.author))continue;
+      usedAuthors.add(w.author); distract.push(w);
+      if(distract.length>=3)break;
+    }
+    // 万一足りなければ作者重複を許して補充
+    if(distract.length<3){
+      for(const w of cands){
+        if(distract.includes(w))continue;
+        distract.push(w); if(distract.length>=3)break;
+      }
+    }
+  }
   S.options=pick([target,...distract],4);
   renderQuestion();
 }
