@@ -4,97 +4,127 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>棒バトフレームクイズ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0f1115; --panel:#191c22; --panel2:#22262e; --line:#2e333d;
-    --text:#e8eaed; --muted:#9aa0aa; --accent:#4aa3ff;
-    --ok:#2ecc71; --ng:#e74c3c; --gold:#f1c40f;
+    --paper:#fdf9ee; --paper2:#fffdf6; --ink:#40382e; --muted:#8c8172;
+    --red:#e8402e; --red-dark:#c22f20; --line:#e7ddc7; --line2:#d8cbae;
+    --ok:#2fa85a; --ng:#e8402e; --gold:#f0a500; --shadow:rgba(120,90,40,.15);
   }
   *{box-sizing:border-box}
-  body{margin:0; background:var(--bg); color:var(--text);
-    font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; line-height:1.5;}
-  .wrap{max-width:720px; margin:0 auto; padding:16px;}
-  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;}
-  h1{font-size:1.2rem; margin:0; cursor:pointer;}
-  .hud{font-size:.85rem; color:var(--muted); text-align:right; white-space:nowrap;}
-  .hud b{color:var(--text);} .hud .time{color:var(--gold); font-variant-numeric:tabular-nums;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper);
+    background-image:linear-gradient(var(--line) 1px,transparent 1px);
+    background-size:100% 30px;
+    color:var(--ink);
+    font-family:"M PLUS Rounded 1c",system-ui,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:14px 16px 40px;}
 
-  button{font:inherit; color:var(--text); background:var(--panel2);
-    border:1px solid var(--line); border-radius:8px; padding:10px 14px; cursor:pointer; transition:.12s;}
-  button:hover:not(:disabled){border-color:var(--accent);}
-  button:disabled{opacity:.4; cursor:default;}
+  /* ヘッダー（赤帯） */
+  header{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--red); color:#fff; border-radius:14px; padding:10px 16px; margin-bottom:14px;
+    box-shadow:0 3px 0 var(--red-dark);}
+  h1{font-size:1.15rem; margin:0; cursor:pointer; font-weight:800; letter-spacing:.02em;}
+  .hud{font-size:.85rem; text-align:right; white-space:nowrap; font-weight:700;}
+  .hud .time{font-size:1.15rem; font-variant-numeric:tabular-nums;}
+  .hud .pen{color:#ffe08a;}
 
-  /* ホーム */
-  .modes{display:grid; gap:12px; margin-top:8px;}
-  .mode-card{text-align:left; padding:16px; border-radius:12px; background:var(--panel); border:1px solid var(--line);}
-  .mode-card:hover{border-color:var(--accent);}
-  .mode-card .t{font-size:1.1rem; font-weight:700;}
-  .mode-card .d{font-size:.85rem; color:var(--muted); margin-top:4px;}
+  button{font:inherit; color:var(--ink); background:var(--paper2); cursor:pointer;
+    border:2px solid var(--line2); border-radius:12px; padding:10px 14px; transition:.1s;
+    box-shadow:0 2px 0 var(--line2); font-weight:700;}
+  button:hover:not(:disabled){border-color:var(--red); box-shadow:0 2px 0 var(--red);}
+  button:active:not(:disabled){transform:translateY(2px); box-shadow:none;}
+  button:disabled{opacity:.5; cursor:default; box-shadow:none;}
+
+  /* ホーム：モードカード */
+  .modes{display:grid; gap:12px; margin-top:6px;}
+  .mode-card{text-align:left; padding:16px; border-radius:16px;}
+  .mode-card .t{font-size:1.15rem; font-weight:800;}
+  .mode-card .d{font-size:.85rem; color:var(--muted); margin-top:4px; font-weight:500;}
   .mode-card .emoji{font-size:1.3rem; margin-right:6px;}
 
-  /* フレーム */
-  .frame-box{position:relative; background:#000; border:1px solid var(--line); border-radius:10px;
-    overflow:hidden; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;}
-  .frame-box img{width:100%; height:100%; object-fit:contain; display:block;}
-  .frame-tag{position:absolute; left:8px; top:8px; background:rgba(0,0,0,.6); padding:2px 8px; border-radius:6px; font-size:.75rem; color:var(--muted);}
+  /* 設定 */
+  .settings{margin-top:14px; background:var(--paper2); border:2px dashed var(--line2); border-radius:14px; padding:10px 14px;}
+  .toggle{display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; font-size:.92rem;}
+  .toggle input{width:20px; height:20px; accent-color:var(--red);}
+  .toggle .sub{color:var(--muted); font-weight:500; font-size:.8rem;}
+
+  /* ゲーム：左右レイアウト */
+  .game{display:flex; gap:16px; align-items:flex-start;}
+  .game .left{flex:1 1 55%; min-width:0;}
+  .game .right{flex:1 1 45%; min-width:0;}
+  @media (max-width:680px){ .game{flex-direction:column;} .game .left,.game .right{flex:1 1 auto; width:100%;} }
+
+  .frame-box{position:relative; background:#fff; border:3px solid var(--ink); border-radius:12px;
+    overflow:hidden; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 var(--shadow);}
+  .frame-box img{width:100%; height:100%; object-fit:contain; display:block; image-rendering:auto;}
+  .frame-tag{position:absolute; left:8px; top:8px; background:rgba(64,56,46,.75); color:#fff;
+    padding:2px 9px; border-radius:8px; font-size:.75rem; font-weight:700;}
   .controls{display:flex; gap:8px; margin:10px 0 4px;}
-  .btn-alt{flex:1;}
-  .hint{font-size:.8rem; color:var(--muted); margin:2px 0 12px;}
+  .btn-alt{flex:1; background:#fff;}
+  .btn-stop{background:#fff; color:var(--red); border-color:var(--red); box-shadow:0 2px 0 var(--red);}
+  .hint{font-size:.78rem; color:var(--muted); margin:4px 0 0; font-weight:500;}
 
-  .q{font-size:.95rem; color:var(--muted); margin:6px 0;}
+  .q{font-size:1rem; font-weight:800; margin:2px 0 10px;}
   .choices{display:grid; gap:10px;}
-  .choice{text-align:left; padding:12px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line); width:100%;}
-  .choice:hover:not(:disabled){border-color:var(--accent);}
-  .choice .title{font-weight:600; font-size:1rem;}
-  .choice .author{font-size:1.05rem; font-weight:700; color:var(--accent); margin-top:3px;}
-  .choice .date{font-size:.8rem; color:var(--muted); margin-top:1px;}
-  .choice .meta{font-size:.82rem; color:var(--muted); margin-top:2px;}
+  .choice{text-align:left; padding:11px 14px; border-radius:14px; background:var(--paper2); width:100%;}
+  .choice.correct{border-color:var(--ok); box-shadow:0 2px 0 var(--ok); background:#eafaef;}
+  .choice.wrong{border-color:var(--ng); box-shadow:0 2px 0 var(--ng); background:#fdeeec;}
+  .choice .title{font-weight:800; font-size:1rem;}
+  .choice .author{font-size:1.1rem; font-weight:800; color:var(--red); margin-top:2px;}
+  .choice .date{font-size:.8rem; color:var(--muted); margin-top:1px; font-weight:500;}
 
-  /* 作者選択 */
-  .search{width:100%; font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line);
-    background:var(--panel); color:var(--text); margin:8px 0;}
-  .author-list{display:grid; gap:8px; max-height:56vh; overflow:auto; padding-right:4px;}
-  .author-item{display:flex; justify-content:space-between; align-items:center; text-align:left;
-    padding:12px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line);}
-  .author-item:hover{border-color:var(--accent);}
-  .author-item .n{color:var(--muted); font-size:.85rem; white-space:nowrap;}
-  .back{background:transparent; border:none; color:var(--muted); padding:6px 0; cursor:pointer;}
-  .back:hover{color:var(--accent);}
-  .choice.correct{border-color:var(--ok); background:rgba(46,204,113,.12);}
-  .choice.wrong{border-color:var(--ng); background:rgba(231,76,60,.12);}
-
-  .result{margin-top:14px; padding:12px 14px; border-radius:10px; background:var(--panel); border:1px solid var(--line); display:none;}
+  .result{margin-top:14px; padding:12px 14px; border-radius:14px; background:var(--paper2); border:2px solid var(--line2); display:none; font-weight:700;}
   .result.show{display:block;}
-  .result a{color:var(--accent);}
-  .next{margin-top:12px; width:100%; background:var(--accent); border-color:var(--accent); color:#04121f; font-weight:700;}
-  .loading{color:var(--muted); text-align:center; padding:40px 0;}
+  .result a{color:var(--red); font-weight:700;}
+  .result .meta{color:var(--muted); font-size:.85rem; margin-top:4px; font-weight:500;}
+  .next{margin-top:12px; width:100%; background:var(--red); border-color:var(--red-dark); color:#fff; box-shadow:0 3px 0 var(--red-dark); font-size:1.05rem;}
+  .loading{color:var(--muted); text-align:center; padding:36px 0; font-weight:700;}
 
   /* 結果画面 */
-  .final{text-align:center; padding:20px 0;}
-  .final .big{font-size:2.6rem; font-weight:800; color:var(--gold);}
-  .final .sub{color:var(--muted); margin-top:4px;}
+  .final{text-align:center; padding:18px 0;}
+  .final .big{font-size:2.8rem; font-weight:800; color:var(--red);}
+  .final .sub{color:var(--muted); margin-top:4px; font-weight:700;}
   .name-row{display:flex; gap:8px; margin:16px 0;}
-  .name-row input{flex:1; font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--text);}
+  .name-row input{flex:1; font:inherit; font-weight:700; padding:10px 12px; border-radius:12px; border:2px solid var(--line2); background:#fff; color:var(--ink);}
 
   /* ランキング */
-  table.rank{width:100%; border-collapse:collapse; margin-top:8px; font-size:.9rem;}
-  table.rank th,table.rank td{padding:8px 10px; border-bottom:1px solid var(--line); text-align:left;}
-  table.rank th{color:var(--muted); font-weight:600; font-size:.8rem;}
-  table.rank td.r{width:36px; color:var(--muted); font-variant-numeric:tabular-nums;}
-  table.rank td.sc{text-align:right; font-weight:700; font-variant-numeric:tabular-nums;}
-  table.rank tr.me{background:rgba(74,163,255,.12);}
+  table.rank{width:100%; border-collapse:collapse; margin-top:8px; font-size:.92rem;}
+  table.rank th,table.rank td{padding:8px 10px; border-bottom:2px solid var(--line); text-align:left;}
+  table.rank th{color:var(--muted); font-weight:700; font-size:.8rem;}
+  table.rank td.r{width:38px; color:var(--muted); font-variant-numeric:tabular-nums; font-weight:800;}
+  table.rank td.sc{text-align:right; font-weight:800; font-variant-numeric:tabular-nums;}
+  table.rank tr.me{background:#fff6d9;}
   .tabs{display:flex; gap:8px; margin-top:8px;}
-  .tabs button{flex:1; font-size:.85rem;}
-  .tabs button.active{border-color:var(--accent); color:var(--accent);}
+  .tabs button{flex:1; font-size:.9rem;}
+  .tabs button.active{border-color:var(--red); color:var(--red); box-shadow:0 2px 0 var(--red);}
 
-  footer{margin-top:20px; font-size:.75rem; color:var(--muted); text-align:center;}
+  /* 作者選択 */
+  .search{width:100%; font:inherit; font-weight:700; padding:10px 12px; border-radius:12px; border:2px solid var(--line2); background:#fff; color:var(--ink); margin:8px 0;}
+  .author-list{display:grid; gap:8px; max-height:56vh; overflow:auto; padding-right:4px;}
+  .author-item{display:flex; justify-content:space-between; align-items:center; text-align:left; padding:12px 14px; border-radius:12px;}
+  .author-item .n{color:var(--muted); font-size:.85rem; white-space:nowrap; font-weight:700;}
+  .back{background:transparent; border:none; box-shadow:none; color:var(--red); padding:4px 0; cursor:pointer;}
+  .back:hover{text-decoration:underline; box-shadow:none; border:none;}
+
+  footer{margin-top:22px; font-size:.75rem; color:var(--muted); text-align:center; font-weight:500;}
   footer a{color:var(--muted);}
+  .penflash{position:fixed; left:50%; top:80px; transform:translateX(-50%); background:var(--ng); color:#fff;
+    font-weight:800; padding:8px 18px; border-radius:12px; font-size:1.3rem; z-index:9; box-shadow:0 3px 0 var(--red-dark);
+    animation:penfade 1s ease forwards; pointer-events:none;}
+  @keyframes penfade{0%{opacity:0;transform:translate(-50%,10px) scale(.8);}20%{opacity:1;transform:translate(-50%,0) scale(1);}100%{opacity:0;transform:translate(-50%,-20px) scale(1);}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1 onclick="home()">🥢 棒バトフレームクイズ</h1>
+    <h1 onclick="home()">🐸 棒バトフレームクイズ</h1>
     <div class="hud" id="hud"></div>
   </header>
   <div id="app"><div class="loading">読み込み中…</div></div>
@@ -108,18 +138,20 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 const TA_SECONDS = 60;   // タイムアタックの制限時間
 const ACC_TOTAL = 50;    // 正答率モードの問題数
+const WRONG_PENALTY = 3; // タイムアタック不正解ペナルティ（秒）
 
-const S = { works:[], cur:null, frameIdx:0, answered:false, mode:null };
+const S = { works:[], cur:null, frameIdx:0, answered:false, mode:null,
+  settings:{ hideTitle: localStorage.getItem('kwzq_hideTitle')==='1' } };
 
 function pick(arr,n){const a=arr.slice(),o=[];while(o.length<n&&a.length)o.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);return o;}
 function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const app = ()=>document.getElementById('app');
-const hud = ()=>document.getElementById('hud');
+const app=()=>document.getElementById('app');
+const hud=()=>document.getElementById('hud');
 
 async function load(){
   try{
-    const all = await (await fetch('quiz_data.json',{cache:'no-store'})).json();
-    S.works = all.filter(w=>w.frames && w.frames.length);
+    const all=await (await fetch('quiz_data.json',{cache:'no-store'})).json();
+    S.works=all.filter(w=>w.frames&&w.frames.length);
     if(S.works.length<4){app().innerHTML='<div class="loading">データが足りません</div>';return;}
     home();
   }catch(e){ app().innerHTML='<div class="loading">quiz_data.json を読み込めませんでした</div>'; }
@@ -127,27 +159,29 @@ async function load(){
 
 // ===== ホーム =====
 function home(){
-  S.mode=null; hud().textContent='';
-  app().innerHTML = `
+  stopTimer(); S.mode=null; hud().textContent='';
+  app().innerHTML=`
     <div class="modes">
       <button class="mode-card" onclick="startNormal()">
         <div class="t"><span class="emoji">♾️</span>ふつうモード</div>
-        <div class="d">気軽にエンドレスで挑戦。連続正解数を伸ばそう。</div>
-      </button>
+        <div class="d">気軽にエンドレスで挑戦。連続正解数を伸ばそう。</div></button>
       <button class="mode-card" onclick="startTA()">
         <div class="t"><span class="emoji">⏱️</span>タイムアタック（${TA_SECONDS}秒）</div>
-        <div class="d">制限時間内に何問正解できるか。ランキングあり🏆</div>
-      </button>
+        <div class="d">制限時間内に何問正解できるか。不正解は-${WRONG_PENALTY}秒！ランキングあり🏆</div></button>
       <button class="mode-card" onclick="startACC()">
         <div class="t"><span class="emoji">🎯</span>正答率モード（${ACC_TOTAL}問）</div>
-        <div class="d">${ACC_TOTAL}問の正解数と早さを競う。ランキングあり🏆</div>
-      </button>
+        <div class="d">${ACC_TOTAL}問の正解数と早さを競う。ランキングあり🏆</div></button>
       <button class="mode-card" onclick="authorSelect()">
         <div class="t"><span class="emoji">👤</span>作者モード</div>
-        <div class="d">1人の作者にしぼって出題。全作品モード＆タイムアタック。</div>
-      </button>
+        <div class="d">1人の作者にしぼって出題。全作品モード＆タイムアタック。</div></button>
     </div>
-    <div style="margin-top:20px">
+    <div class="settings">
+      <label class="toggle">
+        <input type="checkbox" id="setHide" ${S.settings.hideTitle?'checked':''} onchange="toggleHide()">
+        <span>作品名を隠す<br><span class="sub">選択肢の作品名を伏せて、作者名と投稿日だけで当てる上級モード</span></span>
+      </label>
+    </div>
+    <div style="margin-top:18px">
       <div class="tabs">
         <button id="tab-ta" class="active" onclick="showBoard('timeattack')">⏱️ タイムアタック</button>
         <button id="tab-acc" onclick="showBoard('accuracy')">🎯 正答率</button>
@@ -156,15 +190,18 @@ function home(){
     </div>`;
   showBoard('timeattack');
 }
+function toggleHide(){
+  S.settings.hideTitle=document.getElementById('setHide').checked;
+  localStorage.setItem('kwzq_hideTitle', S.settings.hideTitle?'1':'0');
+}
 
 // ===== 出題共通 =====
 function nextQuestion(){
   S.answered=false;
-  const pool = S.pool && S.pool.length ? S.pool : S.works;
-  // 全作品モードは各作品を1回ずつ（順番はシャッフル済みの queue から取る）
+  const pool=S.pool&&S.pool.length?S.pool:S.works;
   let target;
-  if(S.queue && S.queue.length){ target = S.queue.shift(); }
-  else { target = pick(pool,1)[0]; }
+  if(S.queue&&S.queue.length){ target=S.queue.shift(); }
+  else { target=pick(pool,1)[0]; }
   S.cur=target;
   S.frameIdx=Math.floor(Math.random()*target.frames.length);
   const distract=pick(pool.filter(w=>w.id!==target.id),3);
@@ -174,26 +211,34 @@ function nextQuestion(){
 
 function renderQuestion(){
   const w=S.cur, frame=w.frames[S.frameIdx];
-  const authorMode = S.mode && S.mode.startsWith('author');
+  const authorMode=S.mode&&S.mode.startsWith('author');
+  const hide=S.settings.hideTitle;
   const opts=S.options.map(o=>{
-    // 作者モードは全員同じ作者なので、作品名＋投稿日で見分ける
-    const info = authorMode
-      ? `<div class="date">${o.date?esc(o.date):''}${o.duration?' ・ '+esc(o.duration):''}</div>`
-      : `<div class="author">${esc(o.author)}</div>${o.date?'<div class="date">'+esc(o.date)+'</div>':''}`;
-    return `<button class="choice" data-id="${o.id}" onclick="answer('${o.id}')">
-      <div class="title">${esc(o.title)}</div>${info}
-    </button>`;
+    let lines='';
+    if(!hide) lines+=`<div class="title">${esc(o.title)}</div>`;
+    if(authorMode) lines+=`<div class="date">${o.date?esc(o.date):''}${o.duration?' ・ '+esc(o.duration):''}</div>`;
+    else { lines+=`<div class="author">${esc(o.author)}</div>`; if(o.date)lines+=`<div class="date">${esc(o.date)}</div>`; }
+    return `<button class="choice" data-id="${o.id}" onclick="answer('${o.id}')">${lines}</button>`;
   }).join('');
   app().innerHTML=`
-    <div class="frame-box">
-      <img src="frames/${frame}" alt="frame" onerror="this.style.opacity=.3">
-      <div class="frame-tag">コマ ${S.frameIdx+1}/${w.frames.length}</div>
-    </div>
-    <div class="controls"><button class="btn-alt" onclick="otherFrame()">🔀 別のコマ！</button></div>
-    <div class="hint">真っ黒/真っ白っぽいコマが出たら「別のコマ！」で変えられるよ</div>
-    <div class="q">この1コマはどの作品？</div>
-    <div class="choices">${opts}</div>
-    <div class="result" id="result"></div>`;
+    <div class="game">
+      <div class="left">
+        <div class="frame-box">
+          <img src="frames/${frame}" alt="frame" onerror="this.style.opacity=.3">
+          <div class="frame-tag">コマ ${S.frameIdx+1}/${w.frames.length}</div>
+        </div>
+        <div class="controls">
+          <button class="btn-alt" onclick="otherFrame()">🔀 別のコマ！</button>
+          <button class="btn-stop" onclick="quitGame()">■ 中断</button>
+        </div>
+        <div class="hint">真っ黒/真っ白っぽいコマが出たら「別のコマ！」で変えられるよ</div>
+      </div>
+      <div class="right">
+        <div class="q">この1コマはどの作品？</div>
+        <div class="choices">${opts}</div>
+        <div class="result" id="result"></div>
+      </div>
+    </div>`;
   updateHud();
 }
 
@@ -203,6 +248,12 @@ function otherFrame(){
   S.frameIdx=i;
   const img=document.querySelector('.frame-box img'), tag=document.querySelector('.frame-tag');
   img.src='frames/'+w.frames[i]; img.style.opacity=1; tag.textContent=`コマ ${i+1}/${w.frames.length}`;
+}
+
+function quitGame(){
+  stopTimer();
+  if(S.mode&&S.mode.startsWith('author')){ const a=S.author; S.mode=null; authorMenuFor(a); }
+  else home();
 }
 
 function answer(id){
@@ -216,88 +267,86 @@ function answer(id){
 }
 
 function updateHud(){
-  const timed = S.mode==='timeattack' || S.mode==='author_ta';
+  const timed=(S.mode==='timeattack'||S.mode==='author_ta');
   if(S.mode==='normal'){
     hud().innerHTML=`連続 <b>${S.streak}</b> ／ 正解 <b>${S.correct}</b>/<b>${S.total}</b>`;
   }else if(timed){
     hud().innerHTML=`残り <span class="time">${S.timeLeft}</span>秒 ／ 正解 <b>${S.correct}</b>`;
-  }else if(S.mode==='accuracy' || S.mode==='author_all'){
+  }else if(S.mode==='accuracy'||S.mode==='author_all'){
     const n=Math.min(S.total+1,S.limit);
     hud().innerHTML=`<b>${n}</b>/${S.limit}問 ／ 正解 <b>${S.correct}</b>`;
   }
 }
 
-function resetPool(){ S.pool=S.works; S.queue=null; S.author=null; }
+// ===== タイマー =====
+function startTimer(){ S.timer=setInterval(()=>{S.timeLeft--;updateHud();if(S.timeLeft<=0)finishTimed();},1000); }
+function stopTimer(){ if(S.timer){clearInterval(S.timer);S.timer=null;} }
+function penalty(){
+  S.timeLeft=Math.max(0,S.timeLeft-WRONG_PENALTY);
+  const f=document.createElement('div'); f.className='penflash'; f.textContent=`-${WRONG_PENALTY}秒`;
+  document.body.appendChild(f); setTimeout(()=>f.remove(),1000);
+  updateHud();
+}
 
 // ===== ふつうモード =====
+function resetPool(){ S.pool=S.works; S.queue=null; S.author=null; }
 function startNormal(){resetPool();S.mode='normal';S.streak=0;S.correct=0;S.total=0;nextQuestion();}
 function afterNormal(ok,w){
   S.total++; if(ok){S.correct++;S.streak++;}else S.streak=0;
   const r=document.getElementById('result'); r.className='result show';
   r.innerHTML=`
     <div>${ok?'✅ 正解！':'❌ 不正解…'} 答えは <b>${esc(w.title)}</b></div>
-    <div class="meta" style="color:var(--muted);font-size:.85rem;margin-top:4px">${esc(w.author)}${w.date?' ・ '+esc(w.date):''} ・ ${esc(w.duration||'')}</div>
+    <div class="meta">${esc(w.author)}${w.date?' ・ '+esc(w.date):''} ・ ${esc(w.duration||'')}</div>
     <div style="margin-top:6px"><a href="${esc(w.url)}" target="_blank" rel="noopener">▶ 動画を見る</a> ・ <a href="https://aiueo9999.pythonanywhere.com/detail/${w.id}" target="_blank" rel="noopener">作品ページ</a></div>
     <button class="next" onclick="nextQuestion()">次の問題 →</button>`;
   updateHud();
 }
 
-// ===== タイムアタック / 正答率（回答したら即次へ） =====
-function startTimer(){ S.timer=setInterval(()=>{S.timeLeft--;updateHud();if(S.timeLeft<=0)finishTimed();},1000); }
-function startTA(){
-  resetPool();
-  S.mode='timeattack';S.correct=0;S.total=0;S.timeLeft=TA_SECONDS;
-  startTimer(); nextQuestion();
-}
-function startACC(){
-  resetPool();
-  S.mode='accuracy';S.correct=0;S.total=0;S.limit=ACC_TOTAL;S.startTime=Date.now();
-  nextQuestion();
-}
+// ===== タイムアタック / 正答率 =====
+function startTA(){resetPool();S.mode='timeattack';S.correct=0;S.total=0;S.timeLeft=TA_SECONDS;startTimer();nextQuestion();}
+function startACC(){resetPool();S.mode='accuracy';S.correct=0;S.total=0;S.limit=ACC_TOTAL;S.startTime=Date.now();nextQuestion();}
 function afterTimed(ok,w){
   S.total++; if(ok)S.correct++;
+  const timed=(S.mode==='timeattack'||S.mode==='author_ta');
+  if(!ok && timed) penalty();
   updateHud();
-  // 一瞬だけ結果を見せて自動で次へ
+  if(S.timeLeft!==undefined && timed && S.timeLeft<=0){ finishTimed(); return; }
   const r=document.getElementById('result'); r.className='result show';
   r.innerHTML=`<div>${ok?'✅ 正解！':'❌ 不正解… 答えは <b>'+esc(w.title)+'</b>'}</div>`;
-  const delay = ok?450:900;
-  const fixed = (S.mode==='accuracy' || S.mode==='author_all');
-  if(fixed && S.total>=S.limit){ setTimeout(finishTimed,delay); return; }
+  const delay=ok?450:900;
+  const fixed=(S.mode==='accuracy'||S.mode==='author_all');
+  if(fixed&&S.total>=S.limit){ setTimeout(finishTimed,delay); return; }
   setTimeout(()=>{ if(S.mode)nextQuestion(); }, delay);
 }
 
 function finishTimed(){
-  if(S.timer){clearInterval(S.timer);S.timer=null;}
+  stopTimer();
   const mode=S.mode, author=S.author;
-  let score, detail, label, big;
-  if(mode==='timeattack'){ score=S.correct; detail=S.total; big=score; label=`${TA_SECONDS}秒で <b>${score}</b> 問正解`; }
-  else if(mode==='accuracy'){ const sec=Math.round((Date.now()-S.startTime)/1000); score=S.correct; detail=sec; big=`${score}/${ACC_TOTAL}`; label=`${ACC_TOTAL}問中 <b>${score}</b> 問正解（${sec}秒）`; }
-  else if(mode==='author_ta'){ score=S.correct; detail=S.total; big=score; label=`${esc(author)} で ${TA_SECONDS}秒 <b>${score}</b> 問正解`; }
-  else { const sec=Math.round((Date.now()-S.startTime)/1000); score=S.correct; detail=sec; big=`${score}/${S.limit}`; label=`${esc(author)} 全${S.limit}問中 <b>${score}</b> 問正解（${sec}秒）`; }
+  let score,detail,label,big;
+  if(mode==='timeattack'){score=S.correct;detail=S.total;big=score;label=`${TA_SECONDS}秒で <b>${score}</b> 問正解`;}
+  else if(mode==='accuracy'){const sec=Math.round((Date.now()-S.startTime)/1000);score=S.correct;detail=sec;big=`${score}/${ACC_TOTAL}`;label=`${ACC_TOTAL}問中 <b>${score}</b> 問正解（${sec}秒）`;}
+  else if(mode==='author_ta'){score=S.correct;detail=S.total;big=score;label=`${esc(author)} で ${TA_SECONDS}秒 <b>${score}</b> 問正解`;}
+  else {const sec=Math.round((Date.now()-S.startTime)/1000);score=S.correct;detail=sec;big=`${score}/${S.limit}`;label=`${esc(author)} 全${S.limit}問中 <b>${score}</b> 問正解（${sec}秒）`;}
   S.mode=null; hud().textContent='';
 
-  // 作者モードはローカル結果のみ（共有ランキングなし）
-  if(mode==='author_all' || mode==='author_ta'){
+  if(mode==='author_all'||mode==='author_ta'){
     S.selAuthor=author;
     app().innerHTML=`
       <div class="final"><div class="big">${big}</div><div class="sub">${label}</div></div>
       <button class="next" onclick="authorMenu()">同じ作者でもう一度</button>
-      <button class="mode-card" style="margin-top:10px" onclick="home()">ホームへ戻る</button>`;
+      <button class="mode-card" style="margin-top:10px;text-align:center" onclick="home()">ホームへ戻る</button>`;
     return;
   }
 
-  const lastName = localStorage.getItem('kwzq_name')||'';
+  const lastName=localStorage.getItem('kwzq_name')||'';
   app().innerHTML=`
-    <div class="final">
-      <div class="big">${big}</div>
-      <div class="sub">${label}</div>
-    </div>
+    <div class="final"><div class="big">${big}</div><div class="sub">${label}</div></div>
     <div class="name-row">
       <input id="pname" maxlength="16" placeholder="名前（16文字まで）" value="${esc(lastName)}">
       <button onclick="submitScore('${mode}',${score},${detail})">🏆 登録</button>
     </div>
-    <div id="submsg" style="color:var(--muted);font-size:.85rem;text-align:center"></div>
-    <button class="next" onclick="home()">ホームへ戻る</button>
+    <div id="submsg" style="color:var(--muted);font-size:.85rem;text-align:center;font-weight:700"></div>
+    <button class="mode-card" style="text-align:center" onclick="home()">ホームへ戻る</button>
     <div style="margin-top:18px"><div class="q">🏆 ランキング</div><div id="board"></div></div>`;
   renderBoard(mode, app().querySelector('#board'));
 }
@@ -307,11 +356,10 @@ function authorList(){
   const from={};
   S.works.forEach(w=>{(from[w.author]=from[w.author]||[]).push(w);});
   return Object.entries(from).filter(([a,ws])=>ws.length>=4)
-    .map(([a,ws])=>({author:a,count:ws.length}))
-    .sort((x,y)=>y.count-x.count);
+    .map(([a,ws])=>({author:a,count:ws.length})).sort((x,y)=>y.count-x.count);
 }
 function authorSelect(){
-  S.mode=null; hud().textContent='';
+  stopTimer(); S.mode=null; hud().textContent='';
   const list=authorList();
   app().innerHTML=`
     <button class="back" onclick="home()">← ホーム</button>
@@ -326,8 +374,7 @@ function renderAuthors(list){
   if(!list.length){el.innerHTML='<div class="loading">見つかりません</div>';return;}
   el.innerHTML=list.map((a,i)=>`
     <button class="author-item" onclick="authorMenuIdx(${i})">
-      <span>${esc(a.author)}</span><span class="n">${a.count}作品</span>
-    </button>`).join('');
+      <span>${esc(a.author)}</span><span class="n">${a.count}作品</span></button>`).join('');
   S._shown=list;
 }
 function filterAuthors(){
@@ -335,9 +382,10 @@ function filterAuthors(){
   renderAuthors(S._authors.filter(a=>a.author.toLowerCase().includes(q)));
 }
 function authorMenuIdx(i){ authorMenu(S._shown[i].author); }
+function authorMenuFor(a){ S.selAuthor=a; authorMenu(a); }
 function authorMenu(author){
-  if(author) S.selAuthor=author; else author=S.selAuthor;
-  S.mode=null; hud().textContent='';
+  if(author)S.selAuthor=author; else author=S.selAuthor;
+  stopTimer(); S.mode=null; hud().textContent='';
   const pool=S.works.filter(w=>w.author===author);
   app().innerHTML=`
     <button class="back" onclick="authorSelect()">← 作者選択</button>
@@ -345,18 +393,16 @@ function authorMenu(author){
     <div class="modes">
       <button class="mode-card" onclick="startAuthorAll()">
         <div class="t"><span class="emoji">📚</span>全作品モード（${pool.length}問）</div>
-        <div class="d">この作者の全${pool.length}作品を1問ずつ出題。</div>
-      </button>
+        <div class="d">この作者の全${pool.length}作品を1問ずつ出題。</div></button>
       <button class="mode-card" onclick="startAuthorTA()">
         <div class="t"><span class="emoji">⏱️</span>タイムアタック（${TA_SECONDS}秒）</div>
-        <div class="d">この作者の作品から、制限時間内に何問正解できるか。</div>
-      </button>
+        <div class="d">この作者の作品から、制限時間内に何問正解できるか。不正解は-${WRONG_PENALTY}秒！</div></button>
     </div>`;
 }
 function startAuthorAll(){
   const author=S.selAuthor;
   S.pool=S.works.filter(w=>w.author===author);
-  S.queue=pick(S.pool, S.pool.length); // シャッフルして1回ずつ
+  S.queue=pick(S.pool,S.pool.length);
   S.mode='author_all';S.author=author;S.correct=0;S.total=0;S.limit=S.pool.length;S.startTime=Date.now();
   nextQuestion();
 }
@@ -376,46 +422,45 @@ async function submitScore(mode,score,detail){
     await fetch(SB_URL+'/rest/v1/scores',{method:'POST',
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
       body:JSON.stringify({mode,name,score,detail})});
-    localStorage.setItem('kwzq_lastid', mode+'|'+name+'|'+score+'|'+detail);
+    localStorage.setItem('kwzq_lastid', mode+'|'+name);
     msg.textContent='✅ 登録しました！';
     renderBoard(mode, app().querySelector('#board'));
   }catch(e){ msg.textContent='❌ 登録に失敗しました（通信エラー）'; }
 }
 
-// ===== ランキング表示 =====
+// ===== ランキング（同じ名前は最高記録のみ） =====
 function showBoard(mode){
   document.getElementById('tab-ta').classList.toggle('active',mode==='timeattack');
   document.getElementById('tab-acc').classList.toggle('active',mode==='accuracy');
   renderBoard(mode, document.getElementById('board'));
 }
-
 async function renderBoard(mode, el){
   if(!el)return;
   el.innerHTML='<div class="loading">読み込み中…</div>';
-  // timeattack: score降順。accuracy: score降順→detail(秒)昇順
-  const order = mode==='timeattack' ? 'score.desc,created_at.asc' : 'score.desc,detail.asc';
-  const url=SB_URL+`/rest/v1/scores?mode=eq.${mode}&order=${order}&limit=20&select=name,score,detail`;
+  // ベスト順に取得 → 名前ごと最初の1件（＝最高記録）だけ残す
+  const order=mode==='timeattack'?'score.desc,created_at.asc':'score.desc,detail.asc';
+  const url=SB_URL+`/rest/v1/scores?mode=eq.${mode}&order=${order}&limit=500&select=name,score,detail`;
   try{
     const rows=await (await fetch(url,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}})).json();
-    if(!rows.length){el.innerHTML='<div class="loading">まだ記録がありません。1位を狙おう！</div>';return;}
-    const mine=localStorage.getItem('kwzq_lastid');
-    const head = mode==='timeattack'
+    const seen=new Set(), best=[];
+    for(const r of rows){ if(!seen.has(r.name)){ seen.add(r.name); best.push(r); } if(best.length>=20)break; }
+    if(!best.length){el.innerHTML='<div class="loading">まだ記録がありません。1位を狙おう！</div>';return;}
+    const myName=(localStorage.getItem('kwzq_lastid')||'').split('|')[1];
+    const head=mode==='timeattack'
       ? '<tr><th>#</th><th>名前</th><th style="text-align:right">正解数</th></tr>'
       : '<tr><th>#</th><th>名前</th><th style="text-align:right">正解/秒</th></tr>';
-    const body=rows.map((r,i)=>{
-      const key=mode+'|'+r.name+'|'+r.score+'|'+r.detail;
-      const me = key===mine ? ' class="me"' : '';
-      const sc = mode==='timeattack' ? `${r.score}問` : `${r.score}/${ACC_TOTAL}・${Math.round(r.detail)}秒`;
-      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+    const body=best.map((r,i)=>{
+      const me=r.name===myName?' class="me"':'';
+      const sc=mode==='timeattack'?`${r.score}問`:`${r.score}/${ACC_TOTAL}・${Math.round(r.detail)}秒`;
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
       return `<tr${me}><td class="r">${medal}</td><td>${esc(r.name)}</td><td class="sc">${sc}</td></tr>`;
     }).join('');
     el.innerHTML=`<table class="rank">${head}${body}</table>`;
   }catch(e){ el.innerHTML='<div class="loading">ランキングを読み込めませんでした</div>'; }
 }
 
-// グローバル公開
-Object.assign(window,{home,startNormal,startTA,startACC,answer,otherFrame,nextQuestion,submitScore,showBoard,
-  authorSelect,filterAuthors,authorMenu,authorMenuIdx,startAuthorAll,startAuthorTA});
+Object.assign(window,{home,toggleHide,startNormal,startTA,startACC,answer,otherFrame,nextQuestion,quitGame,
+  submitScore,showBoard,authorSelect,filterAuthors,authorMenu,authorMenuIdx,startAuthorAll,startAuthorTA});
 load();
 </script>
 </body>
