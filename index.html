@@ -148,10 +148,12 @@ function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const app=()=>document.getElementById('app');
 const hud=()=>document.getElementById('hud');
 
+function isCollab(w){ return w.type==='合作' || /合作/.test(w.title||''); }
 async function load(){
   try{
     const all=await (await fetch('quiz_data.json',{cache:'no-store'})).json();
-    S.works=all.filter(w=>w.frames&&w.frames.length);
+    // 合作は除外（個人作＆作者不明のみ出題）
+    S.works=all.filter(w=>w.frames&&w.frames.length&&!isCollab(w));
     if(S.works.length<4){app().innerHTML='<div class="loading">データが足りません</div>';return;}
     home();
   }catch(e){ app().innerHTML='<div class="loading">quiz_data.json を読み込めませんでした</div>'; }
