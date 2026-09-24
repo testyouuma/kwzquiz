@@ -11,7 +11,7 @@ import concurrent.futures
 from pathlib import Path
 
 BASE = "https://aiueo9999.pythonanywhere.com/detail/Q{}"
-MAX_ID = 910
+MAX_ID = 1600
 OUT = Path(__file__).parent / "works.json"
 
 sys.stdout.reconfigure(encoding="utf-8")
